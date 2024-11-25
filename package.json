@@ -1,0 +1,25 @@
+{
+    "name": "itemSimulator",
+    "version": "1.0.0",
+    "main": "index.js",
+    "repository": "https://github.com/bbie-6772/itemSimulator.git",
+    "author": "조용필 <78397393+bbie-6772@users.noreply.github.com>",
+    "type": "module",
+    "license": "MIT",
+    "dependencies": {
+        "@prisma/client": "^5.22.0",
+        "express": "^4.21.1",
+        "express-mysql-session": "^3.0.3",
+        "express-session": "^1.18.1",
+        "jsonwebtoken": "^9.0.2",
+        "prisma": "^5.22.0"
+    },
+    "devDependencies": {
+        "datenv": "^0.0.0",
+        "nodemon": "^3.1.7",
+        "prettier": "^3.3.3"
+    },
+    "scripts": {
+        "format": "prettier --write *.js **/*.js"
+    }
+}
