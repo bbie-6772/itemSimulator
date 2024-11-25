@@ -12,3 +12,62 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
+model ItemTable {
+  itemCode      Int      @id @default(autoincrement()) @map("itemCode")
+  name          String   @map("name")
+  health        Int      @map("health")
+  power         Int      @map("power")
+  price         Int      @map("price")
+
+  inventory     Inventory[]
+  equipItem     EquipItem[]
+
+  @@map("ItemTable")
+}
+
+model Accounts {
+  accountId     Int      @id @default(autoincrement()) @map("accountId")
+  userId        String   @unique @map("userId")
+  password      String   @map("password")
+
+  character     Characters[]
+
+  @@map("Accounts")
+}
+
+model Characters {
+  charId       Int      @id @default(autoincrement()) @map("charId")
+  accountId    Int      @map("accountId")
+  name         String   @unique @map("name")
+  health       Int      @map("health")
+  power        Int      @map("power")
+  money        Int      @map("money")
+
+  account      Accounts @relation(fields: [accountId], references: [accountId], onDelete: Cascade)
+  inventory    Inventory?
+  equipItem    EquipItem?
+
+  @@map("Character") 
+}
+
+model Inventory {
+  inventoryId   Int       @id @default(autoincrement()) @map("inventoryId")
+  charId        Int       @unique @map("charId")
+
+  itemTable     ItemTable[]
+  character     Characters @relation(fields: [charId], references: [charId], onDelete: Cascade) 
+
+  @@map("Inventory")
+}
+
+model EquipItem {
+  equipItemId   Int       @id @default(autoincrement()) @map("equipItemId")
+  charId        Int       @unique @map("charId")
+
+  itemTable     ItemTable[]
+  character     Characters @relation(fields: [charId], references: [charId], onDelete: Cascade) 
+
+  @@map("EquipItem")
+}
+
