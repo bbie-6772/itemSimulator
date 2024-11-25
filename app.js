@@ -1,9 +1,6 @@
-import dotenv from 'dotenv'
 import express from 'express'
 import accountRouter from './routes/account.router.js'
-
-// .env 정보 가져오기
-dotenv.config();
+import characterRouter from './routes/character.router.js'
 
 const app = express();
 const PORT = 3030
@@ -11,8 +8,10 @@ const PORT = 3030
 //json 형태의 요청 body 인식
 app.use(express.json());
 
-app.use('/api', accountRouter)
+//router 연결
+app.use('/api', [accountRouter, characterRouter])
 
+//서버 열기
 app.listen(PORT, () => {
     console.log(PORT, '포트로 서버가 열렸어요!');
 });
