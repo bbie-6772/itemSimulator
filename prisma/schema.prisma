@@ -21,7 +21,7 @@ model ItemTable {
   price         Int      @map("price")
 
   inventory     Inventory[]
-  equipItem     EquipItem[]
+  equipment     Equipment[]
 
   @@map("ItemTable")
 }
@@ -40,13 +40,13 @@ model Characters {
   charId       Int      @id @default(autoincrement()) @map("charId")
   accountId    Int      @map("accountId")
   name         String   @unique @map("name")
-  health       Int      @map("health")
-  power        Int      @map("power")
-  money        Int      @map("money")
+  health       Int      @map("health") @default(500)
+  power        Int      @map("power") @default(100)
+  money        Int      @map("money") @default(10000)
 
   account      Accounts @relation(fields: [accountId], references: [accountId], onDelete: Cascade)
   inventory    Inventory?
-  equipItem    EquipItem?
+  equipment    Equipment?
 
   @@map("Character") 
 }
@@ -61,13 +61,13 @@ model Inventory {
   @@map("Inventory")
 }
 
-model EquipItem {
-  equipItemId   Int       @id @default(autoincrement()) @map("equipItemId")
+model Equipment {
+  equipmentId   Int       @id @default(autoincrement()) @map("equipmentId")
   charId        Int       @unique @map("charId")
 
   itemTable     ItemTable[]
   character     Characters @relation(fields: [charId], references: [charId], onDelete: Cascade) 
 
-  @@map("EquipItem")
+  @@map("Equipment")
 }
 
