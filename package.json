@@ -9,8 +9,6 @@
     "dependencies": {
         "@prisma/client": "^5.22.0",
         "express": "^4.21.1",
-        "express-mysql-session": "^3.0.3",
-        "express-session": "^1.18.1",
         "jsonwebtoken": "^9.0.2",
         "prisma": "^5.22.0"
     },
@@ -20,6 +18,7 @@
         "prettier": "^3.3.3"
     },
     "scripts": {
-        "format": "prettier --write *.js **/*.js"
+        "format": "prettier --write *.js **/*.js",
+        "nodemon" : ""
     }
 }
