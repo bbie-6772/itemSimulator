@@ -17,7 +17,7 @@ router.post('/characters', authMiddleware , async (req,res,next) => {
     if (!name) return res
         .status(400)
         .json({ errorMessage: "데이터 형식이 올바르지 않습니다."})
-
+    // 이름 중복 여부 
     const isExitChar = await prisma.characters.findFirst({ where: { name } })
     if (isExitChar) return res
         .status(409)
