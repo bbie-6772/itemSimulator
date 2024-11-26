@@ -77,6 +77,47 @@ router.post('/items', async (req,res,next) => {
         })
 })
 
+// 아이템 조회 API
+router.get('/items',async (req,res,next) => {
+    const items = await prisma.itemTable.findMany({
+        select: {
+            itemCode: true,
+            name: true,
+            price: true
+        }
+    }) 
+    // 아이템이 아에 존재하지 않을 시
+    if (!items) return res
+        .status(404)
+        .json({ errorMessage: "아이템이 존재하지 않습니다" })
+
+    return res
+        .status(200)
+        .json({ itemList: items })
+})
+
+// 아이템 상세 조회 API
+router.get('/items/:itemCode', async (req,res,next) => {
+    const {itemCode} = req.params;
+
+    const item = await prisma.itemTable.findFirst({ 
+        where: { itemCode: +itemCode }
+    })
+    if (!item) return res
+        .status(404)
+        .json({ errorMessage: `<itemCode> ${itemCode}번의 아이템이 존재하지 않습니다` })
+
+    return res
+        .status(200)
+        .json({
+            "item_code" : item.itemCode,
+            "item_name" : item.name,
+            "item_stat" : { "health":item.health,"power":item.power},
+            "item_price": item.price
+        })
+
+})
+
 // 아이템 수정 API
 router.patch('/items/:itemCode', async (req,res,next) => {
     const {itemCode} = req.params;
