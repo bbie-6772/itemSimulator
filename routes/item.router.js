@@ -25,19 +25,19 @@ router.post('/items', async (req,res,next) => {
     if (!item_stat) {
         return res
             .status(400)
-            .json({ errorMessage: "능력치 <item_stat: {\"스탯이름\":값}> 을 입력해주세요" })
+            .json({ errorMessage: "능력치 <item_stat: {\"스탯이름\":값(숫자)}> 을 입력해주세요" })
     }
-    // 스탯 확인 및 없을 시 초기화
+    // 스탯 확인 및 없을 시(또는 값이 숫자가 아닐 시) 초기화
     let { health, power } = item_stat
     health = Number.isInteger(+health) ? +health : 0
     power = Number.isInteger(+power) ? +power : 0
 
     //가격 입력 여부 확인
-    if(!item_price) return res
+    if (!(item_price && Number.isInteger(+item_price))) return res
         .status(400)
-        .json({ errorMessage: "가격 <item_price> 을 입력해주세요" })
-    // 코드 여부에 따라 다르게 생성
-    if (item_code) {
+        .json({ errorMessage: "가격 <item_price> 를 숫자로 입력해주세요" })
+    // 코드 여부(숫자 인지도)에 따라 다르게 생성
+    if (item_code && Number.isInteger(+item_code)) {
         //코드 중복여부 확인
         const isExitCode = await prisma.itemTable.findFirst({ where: { itemCode: item_code } })
         if (isExitCode) return res
@@ -126,11 +126,11 @@ router.patch('/items/:itemCode', async (req,res,next) => {
     if (!item) return res
         .status(404)
         .json({ errorMessage: `<itemCode> ${itemCode}번의 아이템이 존재하지 않습니다` })
-    // 인수 확인 및 없을 시 기본값 유지
+    // 인수 확인 및 없을 시(+숫자가 아닐 시) 기본값 유지
     item_stat ? { health, power } = item_stat : 0
     item_name = item_name ? item_name : item.name
-    health = health ? +health : item.health
-    power = power ? +power : item.power
+    health = Number.isInteger(+health) ? +health : item.health
+    power = Number.isInteger(+power) ? +power : item.power
 
     // 아이템 수정
     await prisma.itemTable.update({
@@ -162,6 +162,7 @@ router.patch('/items-buy/:charId', authMiddleware, async (req,res,next) => {
     const {charId} = req.params;
     const user = req.user;
     let resJson = [];
+
     //캐릭터 존재 확인
     const character = await prisma.characters.findFirst({ where: {charId: +charId}})
     if (!character) return res
@@ -180,19 +181,19 @@ router.patch('/items-buy/:charId', authMiddleware, async (req,res,next) => {
     if (Array.isArray(perchase)) {
         // 비용 총합 구하기
         const sum = perchase.reduce(async (acc, cur) => {
-            // 아이템 코드 미입력 시,
-            if (!cur.item_code) return res
+            // 아이템 코드 미입력(+숫자가 아닐 시) 시,
+            if (!(cur.item_code && Number.isInteger(+cur.item_code))) return res
                 .status(400)
-                .json({ errorMessage:"아이템코드 <item_code>을 입력해주세요" })
+                .json({ errorMessage:"아이템코드 <item_code> 를 숫자로 입력해주세요" })
             // 아이템이 없을 시
             const item = await prisma.itemTable.findFirst({ where: {itemCode: +cur.item_code}})
             if (!item) return res
                 .status(404)
                 .json({ errorMessage: `<item_code> ${+cur.item_code}번의 아이템이 존재하지 않습니다` })
             // 수량 미 기입 시
-            if (!cur.count) return res
+            if (!(cur.count && Number.isInteger(+cur.count))) return res
                 .status(400)
-                .json({ errorMessage: "수량<count> 를 입력해주세요" })
+                .json({ errorMessage: "수량 <count> 를 숫자로 입력해주세요" })
             // 배열마다 값 추가
             acc += item.price * +cur.count
         },0) 
@@ -253,23 +254,24 @@ router.patch('/items-buy/:charId', authMiddleware, async (req,res,next) => {
     // 단일 구매
     } else {
         // 아이템 코드 미입력 시,
-        if (!perchase.item_code) return res
+        if (!(perchase.item_code && Number.isInteger(+perchase.item_code))) return res
             .status(400)
-            .json({ errorMessage: "아이템코드 <item_code>을 입력해주세요" })
+            .json({ errorMessage: "아이템코드 <item_code> 를 숫자로 입력해주세요" })
         // 아이템이 없을 시
         const item = await prisma.itemTable.findFirst({ where: { itemCode: +perchase.item_code } })
         if (!item) return res
             .status(404)
             .json({ errorMessage: `<itemCode> ${+perchase.item_code}번의 아이템이 존재하지 않습니다` })
         // 수량 미 기입 시
-        if (!perchase.count) return res
+        if (!(perchase.count && Number.isInteger(+perchase.count))) return res
             .status(400)
-            .json({ errorMessage: "수량<count> 를 입력해주세요" })
+            .json({ errorMessage: "수량 <count> 를 숫자로 입력해주세요" })
         const sum = item.price * +perchase.count
         // 지불할 돈이 없을 시
         if (character.money - sum < 0) return res
             .status(400)
             .json({ errorMessage: "아이템을 구매할 돈이 부족합니다" })
+        // 구매( 돈 지불 + 아이템 인벤토리 이동) 트랜잭션
         const { updateCharacter, inventory } = await prisma.$transaction(async (tx) => {
             // 가격 지불
             const updateCharacter = await tx.characters.update({
@@ -308,7 +310,7 @@ router.patch('/items-buy/:charId', authMiddleware, async (req,res,next) => {
                 where: { charId: +charId }
             })
             //출력 값 저장
-            resJson = [...resJson, {
+            resJson = [{
                 "message": `${item.name}(을)를 ${+perchase.count}만큼 구매에 성공하였습니다.`,
                 "total_amount": sum,
                 "balance": updateCharacter.money
