@@ -81,7 +81,7 @@ router.post('/sign-in', async (req,res,next) => {
     const token = jwt.sign(
         {userId: account.userId},
         process.env.SESSION_SECRET_KEY,
-        { expiresIn: "1m"}
+        { expiresIn: "10m"}
     )
     // 세션 키 할당
     res.header('authorization', `Bearer ${token}`);
