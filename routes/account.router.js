@@ -17,7 +17,7 @@ router.post(`/sign-up`,async (req, res, next) => {
     //유효성 평가 정규식사용으로 id 입력값이 소문자+숫자만 가능하게
     if (!/^[a-z0-9]*$/.test(id)) {
         return res
-            .status(412)
+            .status(400)
             .json({ errorMessage: "아이디는 소문자와 숫자로만 작성해주세요" })
     }
     // 아이디 중복 확인
@@ -33,13 +33,13 @@ router.post(`/sign-up`,async (req, res, next) => {
     // 비밀번호가 6글자 이상인지 확인
     if (!/\b.{6,}/.test(password)) {
         return res
-            .status(411)
+            .status(400)
             .json({ errorMessage: "비밀번호는 6글자 이상으로 작성해주세요" })
     }
     // 비밀번호 확인이 없을 시
     if (!passwordCheck) {
         return res
-            .status(412)
+            .status(400)
             .json({ errorMessage: "비밀번호 확인용 <passwordCheck>를 입력해주세요" })
     }
     //비밀번호 확인과 일치하는지
@@ -71,7 +71,7 @@ router.post('/sign-in', async (req,res,next) => {
 
     // 아이디가 없을 시
     if (!account) return res
-        .status(401)
+        .status(404)
         .json({ errorMessage: "존재하지 않는 아이디입니다."});
 
     // 비밀번호 검증
