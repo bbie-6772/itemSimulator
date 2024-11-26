@@ -40,7 +40,7 @@ router.post(`/sign-up`,async (req, res, next) => {
     if (!passwordCheck) {
         return res
             .status(412)
-            .json({ errorMessage: "비밀번호 확인용 passwordCheck를 입력해주세요" })
+            .json({ errorMessage: "비밀번호 확인용 <passwordCheck>를 입력해주세요" })
     }
     //비밀번호 확인과 일치하는지
     if (!(password === passwordCheck)) {

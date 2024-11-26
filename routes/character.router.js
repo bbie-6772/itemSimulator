@@ -72,7 +72,7 @@ router.delete('/characters/:charId', authMiddleware, async (req,res,next) => {
     // 캐릭터 존재여부 확인
     if (!character) return res
         .status(404)
-        .json({ errorMessage: "character_id에 해당하는 캐릭터가 존재하지 않습니다."})
+        .json({ errorMessage: "<character_id>에 해당하는 캐릭터가 존재하지 않습니다."})
     // 계정에 귀속된 캐릭터가 맞는지 확인
     if (character.accountId !== user.accountId) return res
         .status(401)
@@ -97,7 +97,7 @@ router.get('/characters/:charId', decodeMiddlware, async (req,res,next) => {
     // 캐릭터 존재여부 확인
     if (!character) return res
         .status(404)
-        .json({ errorMessage: "character_id에 해당하는 캐릭터가 존재하지 않습니다." })
+        .json({ errorMessage: "<character_id>에 해당하는 캐릭터가 존재하지 않습니다." })
     // 계정소유자가 맞는지 확인
     if (character.accountId === (user ? +user.accountId : 0)) {
         return res
