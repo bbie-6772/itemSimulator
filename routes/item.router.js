@@ -1,7 +1,5 @@
 import express from 'express'
 import dotenv from 'dotenv'
-import jwt from 'jsonwebtoken';
-import { Prisma } from '@prisma/client';
 import { prisma } from '../prisma/index.js';
 import { authMiddleware, decodeMiddlware } from '../middlewares/auth.middleware.js';
 
@@ -31,8 +29,8 @@ router.post('/items', async (req,res,next) => {
     }
     // 스탯 확인 및 없을 시 초기화
     let { health, power } = item_stat
-    health = health ? +health : 0
-    power = power ? +power : 0
+    health = Number.isInteger(+health) ? +health : 0
+    power = Number.isInteger(+power) ? +power : 0
 
     //가격 입력 여부 확인
     if(!item_price) return res
@@ -77,7 +75,7 @@ router.post('/items', async (req,res,next) => {
         })
 })
 
-// 아이템 조회 API
+// 아이템 목록 조회 API
 router.get('/items',async (req,res,next) => {
     const items = await prisma.itemTable.findMany({
         select: {
@@ -86,10 +84,6 @@ router.get('/items',async (req,res,next) => {
             price: true
         }
     }) 
-    // 아이템이 아에 존재하지 않을 시
-    if (!items) return res
-        .status(404)
-        .json({ errorMessage: "아이템이 존재하지 않습니다" })
 
     return res
         .status(200)
@@ -105,7 +99,7 @@ router.get('/items/:itemCode', async (req,res,next) => {
     })
     if (!item) return res
         .status(404)
-        .json({ errorMessage: `<itemCode> ${itemCode}번의 아이템이 존재하지 않습니다` })
+        .json({ errorMessage: `<item_code> ${itemCode}번의 아이템이 존재하지 않습니다` })
 
     return res
         .status(200)
@@ -161,6 +155,171 @@ router.patch('/items/:itemCode', async (req,res,next) => {
                 item_price: newItem.price
             }
         })
+})
+
+// 아이템 구매 API
+router.patch('/items-buy/:charId', authMiddleware, async (req,res,next) => {
+    const {charId} = req.params;
+    const user = req.user;
+    let resJson = [];
+    //캐릭터 존재 확인
+    const character = await prisma.characters.findFirst({ where: {charId: +charId}})
+    if (!character) return res
+        .status(404)
+        .json({ errorMessage: `<character_id> ${charId} 에  해당하는 캐릭터가 존재하지 않습니다` })
+    // 계정 소속여부 확인
+    if (character.accountId !== user.accountId) return res
+        .status(401)
+        .json({ errorMessage: "본 계정이 소유한 캐릭터가 아닙니다." })
+    //입력 값이 확인
+    const perchase = req.body;
+    if (!perchase) return res
+        .status(400)
+        .json({ errorMessage: "데이터 형식이 올바르지 않습니다." })
+    //배열로 된 값일 시,
+    if (Array.isArray(perchase)) {
+        // 비용 총합 구하기
+        const sum = perchase.reduce(async (acc, cur) => {
+            // 아이템 코드 미입력 시,
+            if (!cur.item_code) return res
+                .status(400)
+                .json({ errorMessage:"아이템코드 <item_code>을 입력해주세요" })
+            // 아이템이 없을 시
+            const item = await prisma.itemTable.findFirst({ where: {itemCode: +cur.item_code}})
+            if (!item) return res
+                .status(404)
+                .json({ errorMessage: `<item_code> ${+cur.item_code}번의 아이템이 존재하지 않습니다` })
+            // 수량 미 기입 시
+            if (!cur.count) return res
+                .status(400)
+                .json({ errorMessage: "수량<count> 를 입력해주세요" })
+            // 배열마다 값 추가
+            acc += item.price * +cur.count
+        },0) 
+        // 지불할 돈이 없을 시
+        if (character.money - sum < 0) return res
+            .status(400)
+            .json({ errorMessage: "아이템을 구매할 돈이 부족합니다" })
+        
+        for (const key of perchase) {
+            // 구매( 돈 지불 + 아이템 인벤토리 이동) 트랜잭션
+            const { updateCharacter, inventory } = await prisma.$transaction(async (tx) => {
+                const item = await prisma.itemTable.findFirst({ where: { itemCode: +key.item_code } })
+                // 가격 지불
+                const updateCharacter = await tx.characters.update({
+                    data: {
+                        money: { decrement: item.price * +key.count}
+                    },
+                    where: { charId: +charId }
+                })
+                // 아이템 저장 (기존 값 유지)
+                const items = await prisma.inventory.findFirst({ where: { charId: +charId } })
+                let json
+                // 기존 값이 있을 시
+                if (items.items) {
+                    let isExist = false;
+                    // 아이템코드가 중복이면 합침
+                    json = items.items.filter((val) => {
+                        if (val.code === item.itemCode) {
+                            val.amount += +key.count
+                            isExist = true;
+                        }
+                        return true
+                    })
+                    // 아이템코드가 중복이 아닐 시 추가
+                    if (!isExist) {
+                        json = [...json, { code: item.itemCode, amount: +key.count }]
+                    }
+                // 처음 저장 시
+                } else {
+                    json = [{ code: item.itemCode, amount: +key.count }];
+                }
+                // 최종 저장
+                const inventory = await tx.inventory.update({
+                    data: {
+                        items: json
+                    },
+                    where: { charId: +charId }
+                })
+                //출력 값 저장
+                resJson = [...resJson, {
+                    "message": `${item.name}(을)를 ${+key.count}만큼 구매에 성공하였습니다.`,
+                    "total_amount": item.price * +key.count,
+                    "balance": updateCharacter.money
+                }]
+                return {updateCharacter, inventory}
+            })
+        }
+    // 단일 구매
+    } else {
+        // 아이템 코드 미입력 시,
+        if (!perchase.item_code) return res
+            .status(400)
+            .json({ errorMessage: "아이템코드 <item_code>을 입력해주세요" })
+        // 아이템이 없을 시
+        const item = await prisma.itemTable.findFirst({ where: { itemCode: +perchase.item_code } })
+        if (!item) return res
+            .status(404)
+            .json({ errorMessage: `<itemCode> ${+perchase.item_code}번의 아이템이 존재하지 않습니다` })
+        // 수량 미 기입 시
+        if (!perchase.count) return res
+            .status(400)
+            .json({ errorMessage: "수량<count> 를 입력해주세요" })
+        const sum = item.price * +perchase.count
+        // 지불할 돈이 없을 시
+        if (character.money - sum < 0) return res
+            .status(400)
+            .json({ errorMessage: "아이템을 구매할 돈이 부족합니다" })
+        const { updateCharacter, inventory } = await prisma.$transaction(async (tx) => {
+            // 가격 지불
+            const updateCharacter = await tx.characters.update({
+                data: {
+                    money: { decrement: sum }
+                },
+                where: { charId: +charId }
+            })
+            // 아이템 저장 (기존 값 유지)
+            const items = await prisma.inventory.findFirst({ where: { charId: +charId } })
+            let json
+            // 기존 값이 있을 시
+            if (items.items) {
+                let isExist = false;
+                // 아이템코드가 중복이면 합침
+                json = items.items.filter((val) => {
+                    if (val.code === item.itemCode) {
+                        val.amount += +perchase.count
+                        isExist = true;
+                    }
+                    return true
+                })
+                // 아이템코드가 중복이 아닐 시 추가
+                if (!isExist) {
+                    json = [...json, { code: item.itemCode, amount: +perchase.count }]
+                }
+                // 처음 저장 시
+            } else {
+                json = [{ code: item.itemCode, amount: +perchase.count }];
+            }
+            // 최종 저장
+            const inventory = await tx.inventory.update({
+                data: {
+                    items: json
+                },
+                where: { charId: +charId }
+            })
+            //출력 값 저장
+            resJson = [...resJson, {
+                "message": `${item.name}(을)를 ${+perchase.count}만큼 구매에 성공하였습니다.`,
+                "total_amount": sum,
+                "balance": updateCharacter.money
+            }]
+            return { updateCharacter, inventory }
+        })
+    }
+ 
+    return res
+        .status(200)
+        .json(resJson)
 })
 
 export default router;
