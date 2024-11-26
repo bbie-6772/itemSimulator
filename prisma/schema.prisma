@@ -19,10 +19,7 @@ model ItemTable {
   health        Int      @map("health")
   power         Int      @map("power")
   price         Int      @map("price")
-
-  inventory     Inventory[]
-  equipment     Equipment[]
-
+  
   @@map("ItemTable")
 }
 
@@ -54,8 +51,8 @@ model Characters {
 model Inventory {
   inventoryId   Int       @id @default(autoincrement()) @map("inventoryId")
   charId        Int       @unique @map("charId")
+  items         Json?      @map("items")
 
-  itemTable     ItemTable[]
   character     Characters @relation(fields: [charId], references: [charId], onDelete: Cascade) 
 
   @@map("Inventory")
@@ -64,10 +61,11 @@ model Inventory {
 model Equipment {
   equipmentId   Int       @id @default(autoincrement()) @map("equipmentId")
   charId        Int       @unique @map("charId")
+  items         Json?      @map("items")
 
-  itemTable     ItemTable[]
   character     Characters @relation(fields: [charId], references: [charId], onDelete: Cascade) 
 
   @@map("Equipment")
 }
+
 
