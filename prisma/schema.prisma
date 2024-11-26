@@ -16,8 +16,8 @@ datasource db {
 model ItemTable {
   itemCode      Int      @id @default(autoincrement()) @map("itemCode")
   name          String   @map("name")
-  health        Int      @default(0) @map("health")
-  power         Int      @default(0) @map("power")
+  health        Int      @map("health")
+  power         Int      @map("power")
   price         Int      @map("price")
 
   inventory     Inventory[]
