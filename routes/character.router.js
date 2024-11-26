@@ -43,6 +43,7 @@ router.post('/characters', authMiddleware , async (req,res,next) => {
                 charId: +character.charId
             }
         })
+        
         return [character, inventory, equipment]
     }, {
         // 격리 수준 지정 (= commit 이후 읽기가능)
