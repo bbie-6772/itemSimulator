@@ -5,7 +5,6 @@ import { prisma } from '../prisma/index.js'
 // .env 정보 가져오기
 dotenv.config()
 
-
 //인증 미들웨어
 const authMiddleware = async function (req, res, next) {
     try {
@@ -14,7 +13,7 @@ const authMiddleware = async function (req, res, next) {
         if (!authorization) throw new Error("요청한 사용자의 토큰이 존재하지 않습니다.");
         const [tokenType, token] = authorization.split(' ');
         if (tokenType !== "Bearer") throw new Error("토큰 타입이 Bearer 형식이 아닙니다.")
-
+            
         //세션 키 유효성 2차 평가
         const decodedToken = jwt.verify(token, process.env.SESSION_SECRET_KEY)
         const userId = decodedToken.userId;

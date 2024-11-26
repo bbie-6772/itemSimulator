@@ -29,7 +29,6 @@ router.post(`/sign-up`,async (req, res, next) => {
             .status(409)
             .json({ errorMessage: "이미 존재하는 아이디입니다" })
     }
-
     // 비밀번호가 6글자 이상인지 확인
     if (!/\b.{6,}/.test(password)) {
         return res
