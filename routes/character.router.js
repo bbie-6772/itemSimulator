@@ -22,7 +22,6 @@ router.post('/characters', authMiddleware , async (req,res,next) => {
     if (isExitChar) return res
         .status(409)
         .json({ errorMessage: "이미 존재하는 이름입니다" })
-
     //트랜잭션 사용으로 캐릭터/인벤토리/장비 동시 생성
     const [character, inventory, equipment] = await prisma.$transaction( async (tx) => {
         //캐릭터 생성
@@ -72,7 +71,7 @@ router.delete('/characters/:charId', authMiddleware, async (req,res,next) => {
     // 캐릭터 존재여부 확인
     if (!character) return res
         .status(404)
-        .json({ errorMessage: "<character_id>에 해당하는 캐릭터가 존재하지 않습니다."})
+        .json({ errorMessage: `<character_id> ${charId} 에 해당하는 캐릭터가 존재하지 않습니다.` })
     // 계정에 귀속된 캐릭터가 맞는지 확인
     if (character.accountId !== user.accountId) return res
         .status(401)
@@ -97,7 +96,7 @@ router.get('/characters/:charId', decodeMiddlware, async (req,res,next) => {
     // 캐릭터 존재여부 확인
     if (!character) return res
         .status(404)
-        .json({ errorMessage: "<character_id>에 해당하는 캐릭터가 존재하지 않습니다." })
+        .json({ errorMessage: `<character_id> ${charId} 에 해당하는 캐릭터가 존재하지 않습니다.` })
     // 계정소유자가 맞는지 확인
     if (character.accountId === (user ? +user.accountId : 0)) {
         return res
