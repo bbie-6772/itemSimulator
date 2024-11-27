@@ -122,5 +122,38 @@ router.get('/characters/:charId', decodeMiddlware, async (req,res,next) => {
         })
 })
 
+// 동전줍기 API
+router.get('/money/:charId', authMiddleware, async (req,res,next) => {
+    const {charId} = req.params
+    const user = req.user
+    // 캐릭터 존재여부 확인
+    const character = await prisma.characters.findFirst({ where: { charId: +charId } })
+    if (!character) return res
+        .status(404)
+        .json({ errorMessage: `<character_id> ${charId} 에 해당하는 캐릭터가 존재하지 않습니다.` })
+    // 계정에 귀속된 캐릭터가 맞는지 확인
+    if (character.accountId !== user.accountId) return res
+        .status(401)
+        .json({ errorMessage: "본 계정이 소유한 캐릭터가 아닙니다." })
+
+    //돈 랜덤 획득
+    const amonut = Math.round(Math.random() * 10) * 100
+    const updateCharacter = await prisma.characters.update({
+        data: {
+            money: {increment: amonut}
+        },
+        where: { charId: +charId }
+    })
+
+    const resJson = [{
+        "message": `동전을 주웠습니다`,
+        "amount": amonut,
+        "balance": updateCharacter.money
+    }]
+
+    return res 
+        .status(200)
+        .json(resJson)
+})
 
 export default router;
