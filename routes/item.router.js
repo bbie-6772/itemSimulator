@@ -491,20 +491,16 @@ router.get('/items-inventory/:charId', authMiddleware, async (req,res,next) => {
         .status(404)
         .json({ errorMessage: "인벤토리에 아이템이 존재하지 않습니다" })
     // 출력값 조회
-    // const resJson = await Promise.all(items.items.map( async (val) => {  
-    //     const item = await prisma.itemTable.findFirst({ where : {itemCode: +val.code}})
-    //     let json = {}
-    //     json["item_code"] = item.itemCode
-    //     json["item_name"] = item.name
-    //     json["count"] = +val.amount
+    const resJson = await Promise.all(items.items.map( async (val) => {  
+        const item = await prisma.itemTable.findFirst({ where : {itemCode: +val.code}})
+        let json = {}
+        json["item_code"] = item.itemCode
+        json["item_name"] = item.name
+        json["count"] = +val.amount
 
-    //     return json
-    // }))
+        return json
+    }))
 
-    const resJson = items.items.reduce(async (acc, cur) =>  {
-        const item = await prisma.itemTable.findFirst({ where: { itemCode: +val.code } })
-        acc += 1
-    } ,0)
 
     return res
         .status(200)
