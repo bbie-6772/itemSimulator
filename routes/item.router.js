@@ -712,4 +712,188 @@ router.patch('/items-equip/:charId', authMiddleware, async (req,res,next) => {
 
 })
 
+// 장비 탈착 API
+router.patch('/items-takeOff/:charId', authMiddleware, async (req, res, next) => {
+    const { charId } = req.params
+    const user = req.user;
+    const takeOffItem = req.body;
+    let resJson = [];
+
+    //캐릭터 존재 확인
+    let character = await prisma.characters.findFirst({ where: { charId: +charId } })
+    if (!character) return res
+        .status(404)
+        .json({ errorMessage: `<character_id> ${charId} 에 해당하는 캐릭터가 존재하지 않습니다` })
+    // 계정 소속여부 확인
+    if (character.accountId !== user.accountId) return res
+        .status(401)
+        .json({ errorMessage: "본 계정이 소유한 캐릭터가 아닙니다." })
+    //배열로 된 값일 시,
+    if (Array.isArray(takeOffItem)) {
+        for (const key of takeOffItem) {
+            // 아이템 코드 미입력(+숫자가 아닐 시) 시
+            if (!(key.item_code && Number.isInteger(+key.item_code))) return res
+                .status(400)
+                .json({ errorMessage: "해제할 아이템의 코드 <item_code> 를 숫자로 입력해주세요" })
+            // 아이템이 없을 시
+            const item = await prisma.itemTable.findFirst({ where: { itemCode: +key.item_code } })
+            if (!item) return res
+                .status(404)
+                .json({ errorMessage: `<item_code> ${+key.item_code}번의 아이템이 존재하지 않습니다` })
+            // 장착한 아이템에 없을 시,
+            const equipitems = await prisma.equipment.findFirst({ where: { charId: +charId } })
+            if (equipitems.items ? !equipitems.items.find((val) => val.code === +key.item_code) : true) return res
+                .status(409)
+                .json({ errorMessage: "장착하고 있는 아이템이 아닙니다" })
+            const items = await prisma.inventory.findFirst({ where: { charId: +charId } })
+
+            // 탈착(인벤토리 추가 + 장비창 삭제 + 캐릭터 스탯 적용) 트랜잭션
+            const { updateCharacter, inventory, equipment } = await prisma.$transaction(async (tx) => {
+                // 아이템 추가
+                let json = {};
+                // 기존 값이 있을 시
+                if (items.items) {
+                    let isExist = false;
+                    // 아이템코드가 중복이면 합침
+                    json = items.items.filter((val) => {
+                        if (val.code === item.itemCode) {
+                            val.amount += 1
+                            isExist = true;
+                        }
+                        return true
+                    })
+                    // 아이템코드가 중복이 아닐 시 추가
+                    if (!isExist) {
+                        json = [...json, { code: item.itemCode, amount: 1 }]
+                    }
+                    // 인벤토리가 텅 비어있을 시
+                } else {
+                    json = [{ code: item.itemCode, amount: 1 }];
+                }
+                // 아이템 삭제
+                const equip = equipitems.items.filter((val) => +val.code !== item.itemCode)
+
+                // 인벤토리 적용
+                const inventory = await tx.inventory.update({
+                    data: {
+                        items: json
+                    },
+                    where: { charId: +charId }
+                })
+                // 장비창 적용
+                const equipment = await tx.equipment.update({
+                    data: {
+                        items: equip
+                    },
+                    where: { charId: +charId }
+                })
+                // 캐릭터 스탯적용
+                const updateCharacter = await tx.characters.update({
+                    data: {
+                        health: { decrement: item.health },
+                        power: { decrement: item.power }
+                    },
+                    where: { charId: +charId }
+                })
+
+                //출력 값 저장
+                resJson = [...resJson, {
+                    "message": `${item.name}(을)를 해제하였습니다.`,
+                    "health": `-${item.health}`,
+                    "power": `-${item.power}`
+                }]
+                return { updateCharacter, inventory, equipment }
+            })
+        }
+        // 단일 탈착
+    } else {
+        // 아이템 코드 미입력(+숫자가 아닐 시) 시
+        if (!(takeOffItem.item_code && Number.isInteger(+takeOffItem.item_code))) return res
+            .status(400)
+            .json({ errorMessage: "해제할 아이템의 코드 <item_code> 를 숫자로 입력해주세요" })
+        // 아이템이 없을 시
+        const item = await prisma.itemTable.findFirst({ where: { itemCode: +takeOffItem.item_code } })
+        if (!item) return res
+            .status(404)
+            .json({ errorMessage: `<item_code> ${+takeOffItem.item_code}번의 아이템이 존재하지 않습니다` })
+        // 장착한 아이템에 없을 시,
+        const equipitems = await prisma.equipment.findFirst({ where: { charId: +charId } })
+        if (equipitems.items ? !equipitems.items.find((val) => val.code === +takeOffItem.item_code) : true) return res
+            .status(409)
+            .json({ errorMessage: "장착하고 있는 아이템이 아닙니다" })
+        const items = await prisma.inventory.findFirst({ where: { charId: +charId } })
+
+        // 탈착(인벤토리 추가 + 장비창 삭제 + 캐릭터 스탯 적용) 트랜잭션
+        const { updateCharacter, inventory, equipment } = await prisma.$transaction(async (tx) => {
+            // 아이템 추가
+            let json = {};
+            // 기존 값이 있을 시
+            if (items.items) {
+                let isExist = false;
+                // 아이템코드가 중복이면 합침
+                json = items.items.filter((val) => {
+                    if (val.code === item.itemCode) {
+                        val.amount += 1
+                        isExist = true;
+                    }
+                    return true
+                })
+                // 아이템코드가 중복이 아닐 시 추가
+                if (!isExist) {
+                    json = [...json, { code: item.itemCode, amount: 1 }]
+                }
+                // 인벤토리가 텅 비어있을 시
+            } else {
+                json = [{ code: item.itemCode, amount: 1 }];
+            }
+            // 아이템 삭제
+            const equip = equipitems.items.filter((val) => +val.code !== item.itemCode)
+
+            // 인벤토리 적용
+            const inventory = await tx.inventory.update({
+                data: {
+                    items: json
+                },
+                where: { charId: +charId }
+            })
+            // 장비창 적용
+            const equipment = await tx.equipment.update({
+                data: {
+                    items: equip
+                },
+                where: { charId: +charId }
+            })
+            // 캐릭터 스탯적용
+            const updateCharacter = await tx.characters.update({
+                data: {
+                    health: { decrement: item.health },
+                    power: { decrement: item.power }
+                },
+                where: { charId: +charId }
+            })
+
+            //출력 값 저장
+            resJson = [{
+                "message": `${item.name}(을)를 해제하였습니다.`,
+                "health": `-${item.health}`,
+                "power": `-${item.power}`
+            }]
+            return { updateCharacter, inventory, equipment }
+        })
+    }
+
+    character = await prisma.characters.findFirst({ where: { charId: +charId } })
+
+    resJson = [...resJson, {
+        name: character.name,
+        health: character.health,
+        power: character.power
+    }]
+
+    return res
+        .status(200)
+        .json(resJson)
+
+})
+
 export default router;
