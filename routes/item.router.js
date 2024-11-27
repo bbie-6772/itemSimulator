@@ -625,7 +625,7 @@ router.patch('/items-equip/:charId', authMiddleware, async (req,res,next) => {
                 return { updateCharacter, inventory, equipment }
             })
         }
-        // 단일 판매
+        // 단일 장착
     } else {
         // 아이템 코드 미입력(+숫자가 아닐 시) 시
         if (!(equipItem.item_code && Number.isInteger(+equipItem.item_code))) return res
@@ -665,14 +665,14 @@ router.patch('/items-equip/:charId', authMiddleware, async (req,res,next) => {
             } else {
                 equip = [...equipItems.items, { code: item.itemCode }]
             }
-            // 인벤토리 삭제 적용
+            // 인벤토리 적용
             const inventory = await tx.inventory.update({
                 data: {
                     items: json
                 },
                 where: { charId: +charId }
             })
-            // 장비창 아이템 추가 적용
+            // 장비창 적용
             const equipment = await tx.equipment.update({
                 data: {
                     items: equip
