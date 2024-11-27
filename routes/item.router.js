@@ -411,27 +411,27 @@ router.patch('/items/:charId', authMiddleware, async (req, res, next) => {
             // 단일 판매
         } else {
             // 아이템 코드 미입력(+숫자가 아닐 시) 시
-            if (!(key.item_code && Number.isInteger(+key.item_code))) return res
+            if (!(sale.item_code && Number.isInteger(+sale.item_code))) return res
                 .status(400)
                 .json({ errorMessage: "아이템코드 <item_code> 를 숫자로 입력해주세요" })
             // 아이템이 없을 시
-            const item = await prisma.itemTable.findFirst({ where: { itemCode: +key.item_code } })
+            const item = await prisma.itemTable.findFirst({ where: { itemCode: +sale.item_code } })
             if (!item) return res
                 .status(404)
-                .json({ errorMessage: `<item_code> ${+key.item_code}번의 아이템이 존재하지 않습니다` })
+                .json({ errorMessage: `<item_code> ${+sale.item_code}번의 아이템이 존재하지 않습니다` })
             // 수량 미 기입 시
-            if (!(key.count && Number.isInteger(+key.count))) return res
+            if (!(sale.count && Number.isInteger(+sale.count))) return res
                 .status(400)
                 .json({ errorMessage: "판매할 수량 <count> 를 숫자로 입력해주세요" })
             // 판매 할 아이템이 없을 시
             const items = await prisma.inventory.findFirst({ where: { charId: +charId } })
-            if (!items.items || items.items.find((val) => val.code === +key.item_code).amount < +key.count) return res
+            if (!items.items || items.items.find((val) => val.code === +sale.item_code).amount < +sale.count) return res
                 .status(400)
                 .json({ errorMessage: "인벤토리에 판매할 아이템이 부족합니다" })
             // 구매( 돈 지불 + 아이템 인벤토리 이동) 트랜잭션
             const { updateCharacter, inventory } = await prisma.$transaction(async (tx) => {
                 // 돈 지급
-                const amount = Math.round(item.price * 0.6) * +key.count;
+                const amount = Math.round(item.price * 0.6) * +sale.count;
                 const updateCharacter = await tx.characters.update({
                     data: {
                         money: { increment: amount }
@@ -441,7 +441,7 @@ router.patch('/items/:charId', authMiddleware, async (req, res, next) => {
                 // 아이템 삭제 (기존 값에서 제외)
                 const json = items.items.filter((val) => {
                     if (val.code === item.itemCode) {
-                        val.amount -= +key.count
+                        val.amount -= +sale.count
                         if (val.amount <= 0) return false
                     }
                     return true
@@ -455,7 +455,7 @@ router.patch('/items/:charId', authMiddleware, async (req, res, next) => {
                 })
                 //출력 값 저장
                 resJson = [...resJson, {
-                    "message": `${item.name}(을)를 ${+key.count}만큼 판매에 성공하였습니다.`,
+                    "message": `${item.name}(을)를 ${+sale.count}만큼 판매에 성공하였습니다.`,
                     "total_amount": amount,
                     "money": updateCharacter.money
                 }]
