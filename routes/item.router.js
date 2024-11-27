@@ -168,7 +168,7 @@ router.patch('/items-buy/:charId', authMiddleware, async (req,res,next) => {
         const character = await prisma.characters.findFirst({ where: {charId: +charId}})
         if (!character) return res
             .status(404)
-            .json({ errorMessage: `<character_id> ${charId} 에  해당하는 캐릭터가 존재하지 않습니다` })
+            .json({ errorMessage: `<character_id> ${charId} 에 해당하는 캐릭터가 존재하지 않습니다` })
         // 계정 소속여부 확인
         if (character.accountId !== user.accountId) return res
             .status(401)
@@ -333,28 +333,83 @@ router.patch('/items-buy/:charId', authMiddleware, async (req,res,next) => {
 // 아이템 판매 API
 router.patch('/items/:charId', authMiddleware, async (req, res, next) => {
     try {
-        
-    const { charId } = req.params;
-    const user = req.user;
-    let resJson = [];
+            
+        const { charId } = req.params;
+        const user = req.user;
+        let resJson = [];
 
-    //캐릭터 존재 확인
-    const character = await prisma.characters.findFirst({ where: { charId: +charId } })
-    if (!character) return res
-        .status(404)
-        .json({ errorMessage: `<character_id> ${charId} 에  해당하는 캐릭터가 존재하지 않습니다` })
-    // 계정 소속여부 확인
-    if (character.accountId !== user.accountId) return res
-        .status(401)
-        .json({ errorMessage: "본 계정이 소유한 캐릭터가 아닙니다." })
-    //입력 값 확인
-    const perchase = req.body;
-    if (!perchase) return res
-        .status(400)
-        .json({ errorMessage: "데이터 형식이 올바르지 않습니다." })
-    //배열로 된 값일 시,
-    if (Array.isArray(perchase)) {
-        for (const key of perchase) {
+        //캐릭터 존재 확인
+        const character = await prisma.characters.findFirst({ where: { charId: +charId } })
+        if (!character) return res
+            .status(404)
+            .json({ errorMessage: `<character_id> ${charId} 에 해당하는 캐릭터가 존재하지 않습니다` })
+        // 계정 소속여부 확인
+        if (character.accountId !== user.accountId) return res
+            .status(401)
+            .json({ errorMessage: "본 계정이 소유한 캐릭터가 아닙니다." })
+        //입력 값 확인
+        const sale = req.body;
+        if (!sale) return res
+            .status(400)
+            .json({ errorMessage: "데이터 형식이 올바르지 않습니다." })
+        //배열로 된 값일 시,
+        if (Array.isArray(sale)) {
+            for (const key of sale) {
+                // 아이템 코드 미입력(+숫자가 아닐 시) 시
+                if (!(key.item_code && Number.isInteger(+key.item_code))) return res
+                    .status(400)
+                    .json({ errorMessage: "아이템코드 <item_code> 를 숫자로 입력해주세요" })
+                // 아이템이 없을 시
+                const item = await prisma.itemTable.findFirst({ where: { itemCode: +key.item_code } })
+                if (!item) return res
+                    .status(404)
+                    .json({ errorMessage: `<item_code> ${+key.item_code}번의 아이템이 존재하지 않습니다` })
+                // 수량 미 기입 시
+                if (!(key.count && Number.isInteger(+key.count))) return res
+                    .status(400)
+                    .json({ errorMessage: "판매할 수량 <count> 를 숫자로 입력해주세요" })
+                // 판매 할 아이템이 없을 시
+                const items = await prisma.inventory.findFirst({ where: { charId: +charId } })
+                if (!items.items || items.items.find((val) => val.code === +key.item_code).amount < +key.count) return res
+                    .status(400)
+                    .json({ errorMessage: "인벤토리에 판매할 아이템이 부족합니다" })
+
+                // 판매( 돈 지급 + 인벤토리 아이템 삭제) 트랜잭션
+                const { updateCharacter, inventory } = await prisma.$transaction(async (tx) => {
+                    // 돈 지급
+                    const amount = Math.round(item.price * 0.6) * +key.count;
+                    const updateCharacter = await tx.characters.update({
+                        data: {
+                            money: { increment: amount }
+                        },
+                        where: { charId: +charId }
+                    })
+                    // 아이템 삭제 (기존 값에서 제외)
+                    const json = items.items.filter((val) => {
+                        if (val.code === item.itemCode) {
+                            val.amount -= +key.count
+                            if (val.amount <= 0) return false
+                        }
+                        return true
+                    })
+                    // 최종 저장
+                    const inventory = await tx.inventory.update({
+                        data: {
+                            items: json
+                        },
+                        where: { charId: +charId }
+                    })
+                    //출력 값 저장
+                    resJson = [...resJson, {
+                        "message": `${item.name}(을)를 ${+key.count}만큼 판매에 성공하였습니다.`,
+                        "total_amount": amount,
+                        "money": updateCharacter.money
+                    }]
+                    return { updateCharacter, inventory }
+                })
+            }
+            // 단일 판매
+        } else {
             // 아이템 코드 미입력(+숫자가 아닐 시) 시
             if (!(key.item_code && Number.isInteger(+key.item_code))) return res
                 .status(400)
@@ -373,8 +428,7 @@ router.patch('/items/:charId', authMiddleware, async (req, res, next) => {
             if (!items.items || items.items.find((val) => val.code === +key.item_code).amount < +key.count) return res
                 .status(400)
                 .json({ errorMessage: "인벤토리에 판매할 아이템이 부족합니다" })
-
-            // 판매( 돈 지급 + 인벤토리 아이템 삭제) 트랜잭션
+            // 구매( 돈 지불 + 아이템 인벤토리 이동) 트랜잭션
             const { updateCharacter, inventory } = await prisma.$transaction(async (tx) => {
                 // 돈 지급
                 const amount = Math.round(item.price * 0.6) * +key.count;
@@ -408,64 +462,10 @@ router.patch('/items/:charId', authMiddleware, async (req, res, next) => {
                 return { updateCharacter, inventory }
             })
         }
-        // 단일 판매
-    } else {
-        // 아이템 코드 미입력(+숫자가 아닐 시) 시
-        if (!(perchase.item_code && Number.isInteger(+perchase.item_code))) return res
-            .status(400)
-            .json({ errorMessage: "아이템코드 <item_code> 를 숫자로 입력해주세요" })
-        // 아이템이 없을 시
-        const item = await prisma.itemTable.findFirst({ where: { itemCode: +perchase.item_code } })
-        if (!item) return res
-            .status(404)
-            .json({ errorMessage: `<item_code> ${+perchase.item_code}번의 아이템이 존재하지 않습니다` })
-        // 수량 미 기입 시
-        if (!(perchase.count && Number.isInteger(+perchase.count))) return res
-            .status(400)
-            .json({ errorMessage: "판매할 수량 <count> 를 숫자로 입력해주세요" })
-        // 판매 할 아이템이 없을 시
-        const items = await prisma.inventory.findFirst({ where: { charId: +charId } })
-        if (!items.items || items.items.find((val) => val.code === +perchase.item_code).amount < +perchase.count) return res
-            .status(400)
-            .json({ errorMessage: "인벤토리에 판매할 아이템이 부족합니다" })
-        // 구매( 돈 지불 + 아이템 인벤토리 이동) 트랜잭션
-        const { updateCharacter, inventory } = await prisma.$transaction(async (tx) => {
-            // 돈 지급
-            const amount = Math.round(item.price * 0.6) * +perchase.count;
-            const updateCharacter = await tx.characters.update({
-                data: {
-                    money: { increment: amount }
-                },
-                where: { charId: +charId }
-            })
-            // 아이템 삭제 (기존 값에서 제외)
-            const json = items.items.filter((val) => {
-                if (val.code === item.itemCode) {
-                    val.amount -= +perchase.count
-                    if (val.amount <= 0) return false
-                }
-                return true
-            })
-            // 최종 저장
-            const inventory = await tx.inventory.update({
-                data: {
-                    items: json
-                },
-                where: { charId: +charId }
-            })
-            //출력 값 저장
-            resJson = [...resJson, {
-                "message": `${item.name}(을)를 ${+perchase.count}만큼 판매에 성공하였습니다.`,
-                "total_amount": amount,
-                "money": updateCharacter.money
-            }]
-            return { updateCharacter, inventory }
-        })
-    }
 
-    return res
-        .status(200)
-        .json(resJson)
+        return res
+            .status(200)
+            .json(resJson)
     } catch (err) {
         next(err)
     }
@@ -480,7 +480,7 @@ router.get('/items-inventory/:charId', authMiddleware, async (req,res,next) => {
     const character = await prisma.characters.findFirst({ where: { charId: +charId } })
     if (!character) return res
         .status(404)
-        .json({ errorMessage: `<character_id> ${charId} 에  해당하는 캐릭터가 존재하지 않습니다` })
+        .json({ errorMessage: `<character_id> ${charId} 에 해당하는 캐릭터가 존재하지 않습니다` })
     // 계정 소속여부 확인
     if (character.accountId !== user.accountId) return res
         .status(401)
