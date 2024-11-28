@@ -11,52 +11,69 @@ const router = express.Router();
 
 // 캐릭터 생성 API
 router.post('/characters', authMiddleware, charVaild , async (req,res,next) => {
-    //인증 후 사용자 아이디 할당
-    const user = req.user;
-    const {name} = req.body;
+    try {
+        //인증 후 사용자 아이디 할당
+        const user = req.user;
+        const {name} = req.body;
 
-    //트랜잭션 사용으로 캐릭터/인벤토리/장비 동시 생성
-    const [character, inventory, equipment] = await prisma.$transaction( async (tx) => {
-        //캐릭터 생성
-        const character = await tx.characters.create({
-            data: {
-                accountId: +user.accountId,
-                name
-            }
-        })
-        //인벤토리 생성 
-        const inventory = await tx.inventory.create({
-            data: {
-                charId: +character.charId
-            }
-        })
-        //장비창 생성
-        const equipment = await tx.equipment.create({
-            data: {
-                charId: +character.charId
-            }
-        })
-        
-        return [character, inventory, equipment]
-    }, {
-        // 격리 수준 지정 (= commit 이후 읽기가능)
-        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted
-    })
+        // 이름 존재 유무
+        if (!name) throw new Error("캐릭터 이름 <name>을 입력해주세요", { cause: 400 })
 
-    return res
-        .status(201)
-        .json({ 
-            message: `새로운 캐릭터 ${name}(을)를 생성하셨습니다.`,
-            data: { 
-                "character_id": character.charId
-            }
+        // 이름 중복 여부 
+        const isExitChar = await prisma.characters.findFirst({ where: { name } })
+        if (isExitChar) throw new Error("이미 존재하는 이름입니다", { cause: 409 })
+
+        //트랜잭션 사용으로 캐릭터/인벤토리/장비 동시 생성
+        const [character, inventory, equipment] = await prisma.$transaction( async (tx) => {
+            //캐릭터 생성
+            const character = await tx.characters.create({
+                data: {
+                    accountId: +user.accountId,
+                    name
+                }
+            })
+            //인벤토리 생성 
+            const inventory = await tx.inventory.create({
+                data: {
+                    charId: +character.charId
+                }
+            })
+            //장비창 생성
+            const equipment = await tx.equipment.create({
+                data: {
+                    charId: +character.charId
+                }
+            })
+            
+            return [character, inventory, equipment]
+        }, {
+            // 격리 수준 지정 (= commit 이후 읽기가능)
+            isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted
         })
+
+        return res
+            .status(201)
+            .json({ 
+                message: `새로운 캐릭터 ${name}(을)를 생성하셨습니다.`,
+                data: { 
+                    "character_id": character.charId
+                }
+            })
+    } catch (err) {
+        if (err.cause) return res
+            .status(err.cause)
+            .json({ errorMessage: err.message })
+        console.log(err.message)
+        return res
+            .status(400)
+            .json({ errorMessage: "잘못된 접근입니다." });
+    }
+    
 })
 
 // 캐릭터 삭제 API
 router.delete('/characters/:charId', authMiddleware, charVaild, async (req,res,next) => {
-    const {charId} = req.params;
-    const user = req.user;
+    const {charId} = req.params
 
     await prisma.characters.delete({ where: { charId: +charId }})
     
@@ -68,7 +85,7 @@ router.delete('/characters/:charId', authMiddleware, charVaild, async (req,res,n
 // 캐릭터 상세 조회 API
 router.get('/characters/:charId', decodeMiddlware, charVaild, async (req,res,next) => {
     const {charId} = req.params;
-    const user = req.user;
+    const user = req.tempUser;
 
     const character = await prisma.characters.findFirst({ where: { charId: +charId } })
     if (character.accountId === (user ? +user.accountId : 0)) {

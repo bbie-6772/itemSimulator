@@ -56,7 +56,7 @@ const decodeMiddlware = async function (req, res, next) {
         const user = await prisma.accounts.findFirst({ where: { userId } })
         if (!user) throw new Error("토큰 사용자가 존재하지 않습니다.")
         //존재 시, req에 값을 저장 후 다음으로 이동
-        req.user = user;
+        req.tempUser = user;
         next();
         //오류가 있을 시, 정보 할당 중지
     } catch (error) {
