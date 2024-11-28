@@ -19,5 +19,8 @@ app.listen(PORT, () => {
 
 app.use(function (err, req, res, next) {
     console.error(err.stack);
-    res.status(500).send('Something broke!');
+    if(err.cause) res
+        .status(err.cause)
+        .json({errorMessage : err.message})
+    else res.status(500).json({ errorMessage: "문제가 생겼습니다!관리자에게 문의해주세요."})
 });
