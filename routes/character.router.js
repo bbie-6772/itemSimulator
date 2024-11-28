@@ -74,7 +74,10 @@ router.post('/characters', authMiddleware, charVaild , async (req,res,next) => {
 // 캐릭터 삭제 API
 router.delete('/characters/:charId', authMiddleware, charVaild, async (req,res,next) => {
     const {charId} = req.params
+    // 미들웨어에서 인증된 캐릭터 가져오기
+    const { character } = req
 
+    // 캐릭터 삭제
     await prisma.characters.delete({ where: { charId: +charId }})
     
     return res
@@ -85,9 +88,10 @@ router.delete('/characters/:charId', authMiddleware, charVaild, async (req,res,n
 // 캐릭터 상세 조회 API
 router.get('/characters/:charId', decodeMiddlware, charVaild, async (req,res,next) => {
     const {charId} = req.params;
+    // 미들웨어에서 인증된 캐릭터 가져오기
+    const { character } = req
     const user = req.tempUser;
 
-    const character = await prisma.characters.findFirst({ where: { charId: +charId } })
     if (character.accountId === (user ? +user.accountId : 0)) {
         return res
             .status(200)

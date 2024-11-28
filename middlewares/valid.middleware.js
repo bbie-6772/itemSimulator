@@ -38,7 +38,8 @@ const charVaild = async function (req, res, next) {
             // 캐릭터 존재여부 확인
             const character = await prisma.characters.findFirst({ where: { charId: +charId } })
             if (!character) throw new Error(`<character_id> ${charId} 에 해당하는 캐릭터가 존재하지 않습니다.`, { cause: 404 })
-                
+            req.character = character
+
             // 계정에 귀속된 캐릭터가 맞는지 확인(user가 있을 경우)
             if (user) {
                 if (character.accountId !== user.accountId) throw new Error("본 계정이 소유한 캐릭터가 아닙니다.", { cause: 401 })
