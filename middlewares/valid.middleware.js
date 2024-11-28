@@ -58,9 +58,37 @@ const charVaild = async function (req, res, next) {
             .json({ errorMessage: "잘못된 접근입니다." });
     }
 }
+
+//item 관련 유효성 평가 미들웨어
+const itemVaild = async function (req, res, next) {
+    try {
+        const { itemCode } = req.params;
+        const { body } = req;
+        const { item_code } = body
+
+        // 아이템 유효성 평가
+        if (itemCode && Number.isInteger(+itemCode)) {
+            // 아이템 존재 유무
+            const item = await prisma.itemTable.findFirst({ where: { itemCode: +itemCode } })
+            if (!item) throw new Error(`<item_code> ${itemCode}번의 아이템이 존재하지 않습니다`, { cause: 404 })
+            req.item = item
+        } else if (item_code && Number.isInteger(+item_code)) {
+            const item = await prisma.itemTable.findFirst({ where: { itemCode: +item_code } })
+            if (!item) throw new Error(`<item_code> ${item_code}번의 아이템이 존재하지 않습니다`, { cause: 404 })
+            req.item = item
+        }
+
+        next()
+        //던진 오류들 확인해서 반환
+    } catch (err) {
+        if (err.cause) return res
             .status(err.cause)
             .json({ errorMessage: err.message })
+        console.log(err.message)
+        return res
+            .status(400)
+            .json({ errorMessage: "잘못된 접근입니다." });
     }
 }
 
-export { signVaild, charVaild }
+export { signVaild, charVaild, itemVaild }
