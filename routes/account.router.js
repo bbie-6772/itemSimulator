@@ -13,7 +13,7 @@ const router = express.Router();
 // 회원가입 API
 router.post("/sign-up", signVaild, async (req, res, next) => {
     try {
-        const { id, password } = req.body;
+        const { id, password, passwordCheck } = req.body;
 
         // 아이디 존재여부 확인
         const isExitUser = await prisma.accounts.findFirst({ where: { userId: id } })
