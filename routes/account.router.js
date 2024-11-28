@@ -2,7 +2,7 @@ import express from 'express'
 import bycrpt from 'bcrypt'
 import dotenv from 'dotenv'
 import jwt from 'jsonwebtoken';
-import { signvaild } from '../middlewares/valid.middleware.js'
+import { signVaild } from '../middlewares/valid.middleware.js'
 import { prisma } from '../prisma/index.js';
 
 // .env 정보 가져오기
@@ -11,7 +11,7 @@ dotenv.config()
 const router = express.Router();
 
 // 회원가입 API
-router.post("/sign-up", signvaild, async (req, res, next) => {
+router.post("/sign-up", signVaild, async (req, res, next) => {
     const { id, password} = req.body;
 
     //비밀번호 해쉬화
@@ -29,7 +29,7 @@ router.post("/sign-up", signvaild, async (req, res, next) => {
 })
 
 //로그인 API
-router.post('/sign-in', signvaild,async (req,res,next) => {
+router.post('/sign-in', signVaild, async (req,res,next) => {
     const {id,password} = req.body;
 
     const account = await prisma.accounts.findFirst({where: {userId: id}})
