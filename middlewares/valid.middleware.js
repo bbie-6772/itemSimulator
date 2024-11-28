@@ -30,20 +30,17 @@ const charVaild = async function (req, res, next) {
         const { charId } = req.params;
         const { user } = req;
 
-        // 캐릭터 아이디 유효성 평가
-        if (charId) {
-            // 캐릭터 id 확인
-            if (!charId) throw new Error("선택할 <캐릭터 ID>를 URL에 숫자로 입력해주세요.", { cause: 409 })
-            
-            // 캐릭터 존재여부 확인
-            const character = await prisma.characters.findFirst({ where: { charId: +charId } })
-            if (!character) throw new Error(`<character_id> ${charId} 에 해당하는 캐릭터가 존재하지 않습니다.`, { cause: 404 })
-            req.character = character
+        // 캐릭터 id 확인
+        if (!charId || !Number.isInteger(+charId)) throw new Error("선택할 <캐릭터 ID>를 URL에 숫자로 입력해주세요.", { cause: 409 })
+        
+        // 캐릭터 존재여부 확인
+        const character = await prisma.characters.findFirst({ where: { charId: +charId } })
+        if (!character) throw new Error(`<character_id> ${charId} 에 해당하는 캐릭터가 존재하지 않습니다.`, { cause: 404 })
+        req.character = character
 
-            // 계정에 귀속된 캐릭터가 맞는지 확인(user가 있을 경우)
-            if (user) {
-                if (character.accountId !== user.accountId) throw new Error("본 계정이 소유한 캐릭터가 아닙니다.", { cause: 401 })
-            }
+        // 계정에 귀속된 캐릭터가 맞는지 확인(user가 있을 경우)
+        if (user) {
+            if (character.accountId !== user.accountId) throw new Error("본 계정이 소유한 캐릭터가 아닙니다.", { cause: 401 })
         }
 
         next()

@@ -10,7 +10,7 @@ dotenv.config();
 const router = express.Router();
 
 // 캐릭터 생성 API
-router.post('/characters', authMiddleware, charVaild , async (req,res,next) => {
+router.post('/characters', authMiddleware, async (req,res,next) => {
     try {
         //인증 후 사용자 아이디 할당
         const user = req.user;
