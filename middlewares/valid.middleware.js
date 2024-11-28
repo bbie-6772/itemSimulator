@@ -1,6 +1,6 @@
 import { prisma } from '../prisma/index.js'
 
-//account router 유효성 평가 미들웨어
+//account 관련 유효성 평가 미들웨어
 const signVaild = async function (req, res, next) {
     try {
         const { id, password, passwordCheck } = req.body;
@@ -12,30 +12,20 @@ const signVaild = async function (req, res, next) {
         // 비밀번호가 6글자 이상인지 확인
         if (!/\b.{6,}/.test(password)) throw new Error("비밀번호는 6글자 이상으로 작성해주세요", { cause: 400 })
 
-        // 회원가입
-        if (path === "/sign-up") {
-            // 아이디 중복 확인
-            const isExitUser = await prisma.accounts.findFirst({ where: { userId: id } })
-            if (isExitUser) throw new Error("이미 존재하는 아이디입니다", { cause: 409 })
+        if (path === "/sign-in") {
 
-            // 비밀번호 확인이 없을 시
-            if (!passwordCheck) throw new Error("비밀번호 확인용 <passwordCheck>를 입력해주세요", { cause: 400 })
-
-            //비밀번호 확인과 일치하는지
-            if (!(password === passwordCheck)) throw new Error("비밀번호가 일치하지 않습니다", { cause: 401 })
-        // 로그인
-        } else if (path === "/sign-in") {
-            // 아이디가 없을 시
-            const account = await prisma.accounts.findFirst({ where: { userId: id } })
-            if (!account) throw new Error("존재하지 않는 아이디입니다.", { cause: 404 })
         }
 
         next()
         //던진 오류들 확인해서 반환
     } catch (err) {
-        return res
+        if (err.cause) return res
             .status(err.cause)
             .json({ errorMessage: err.message })
+        console.log(err.message)
+        return res
+            .status(400)
+            .json({ errorMessage: "잘못된 접근입니다." });
     }
 }
 
