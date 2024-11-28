@@ -38,13 +38,11 @@ router.post("/sign-up", signVaild, async (req, res, next) => {
             .status(201)
             .json({ message: "회원가입이 완료되었습니다", id: id })
     } catch (err) {
-        if (err.cause) return res
-            .status(err.cause)
-            .json({ errorMessage: err.message })
-        console.log(err.message)
-        return res
-            .status(400)
-            .json({ errorMessage: "잘못된 접근입니다." });
+        if (err.cause) next(err)
+        else {
+            console.error(err)
+            next(new Error("<router> 잘못된 접근입니다.", { cause: 400 }))
+        }
     }
 })
 
@@ -74,13 +72,11 @@ router.post('/sign-in', signVaild, async (req,res,next) => {
             .status(200)
             .json({ message: "로그인에 성공하였습니다." });
     } catch (err) {
-        if (err.cause) return res
-            .status(err.cause)
-            .json({ errorMessage: err.message })
-        console.log(err.message)
-        return res
-            .status(400)
-            .json({ errorMessage: "잘못된 접근입니다." });
+        if (err.cause) next(err)
+        else {
+            console.error(err)
+            next(new Error("<router> 잘못된 접근입니다.", { cause: 400 }))
+        }
     }
 
 })

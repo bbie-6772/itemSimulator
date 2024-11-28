@@ -60,13 +60,11 @@ router.post('/characters', authMiddleware, async (req,res,next) => {
                 }
             })
     } catch (err) {
-        if (err.cause) return res
-            .status(err.cause)
-            .json({ errorMessage: err.message })
-        console.log(err.message)
-        return res
-            .status(400)
-            .json({ errorMessage: "잘못된 접근입니다." });
+        if (err.cause) next(err)
+        else {
+            console.error(err)
+            next(new Error("<router> 잘못된 접근입니다.", { cause: 400 }))
+        }
     }
     
 })
