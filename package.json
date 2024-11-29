@@ -17,8 +17,5 @@
         "dotenv": "^16.4.5",
         "nodemon": "^3.1.7",
         "prettier": "^3.3.3"
-    },
-    "scripts": {
-        "format": "prettier --write *.js **/*.js"
     }
 }
