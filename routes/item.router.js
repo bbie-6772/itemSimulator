@@ -2,8 +2,7 @@ import express from 'express';
 import { prisma } from '../prisma/index.js';
 import {
     itemVaild,
-    charVaild,
-    pluralResponse,
+    charVaild
 } from '../middlewares/valid.middleware.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 
@@ -176,7 +175,7 @@ router.patch(
     '/items-buy/:charId',
     authMiddleware,
     charVaild,
-    pluralResponse,
+    itemVaild,
     async (req, res, next) => {
         try {
             const { charId } = req.params;
@@ -362,7 +361,7 @@ router.patch(
     '/items-sell/:charId',
     authMiddleware,
     charVaild,
-    pluralResponse,
+    itemVaild,
     async (req, res, next) => {
         try {
             const { charId } = req.params;
@@ -576,7 +575,7 @@ router.patch(
     '/items-equip/:charId',
     authMiddleware,
     charVaild,
-    pluralResponse,
+    itemVaild,
     async (req, res, next) => {
         try {
             const { charId } = req.params;
@@ -790,7 +789,7 @@ router.patch(
     '/items-takeOff/:charId',
     authMiddleware,
     charVaild,
-    pluralResponse,
+    itemVaild,
     async (req, res, next) => {
         try {
             const { charId } = req.params;

@@ -87,52 +87,7 @@ const itemVaild = async function (req, res, next) {
         const { item_code } = body;
         const reqItemCode = itemCode ?? item_code;
 
-        // 아이템 id 확인
-        if (!reqItemCode || !Number.isInteger(+reqItemCode)) {
-            if (reqItemCode === itemCode) {
-                throw new Error(
-                    '선택할 <item_code> 를 URL에 숫자로 입력해주세요.',
-                    { cause: 400 }
-                );
-            } else if (reqItemCode === item_code)
-                throw new Error('선택할 <item_code> 를 숫자로 입력해주세요.', {
-                    cause: 400,
-                });
-        }
-
-        // 아이템 유효성 평가
-        const item = await prisma.itemTable.findFirst({
-            where: { itemCode: +reqItemCode },
-        });
-        if (!item)
-            throw new Error(
-                `<item_code> ${reqItemCode}번의 아이템이 존재하지 않습니다`,
-                { cause: 404 }
-            );
-        req.item = item;
-
-        next();
-        //던진 오류들 반환
-    } catch (err) {
-        if (err.cause) next(err);
-        else {
-            console.error(err);
-            next(
-                new Error('<middleware> : itemVaild 잘못된 접근입니다.', {
-                    cause: 400,
-                })
-            );
-        }
-    }
-};
-
-//복수형(배열) 아이템 유효성 평가 미들웨어
-const pluralResponse = async function (req, res, next) {
-    try {
-        const { body } = req;
-
-        if (!body)
-            throw new Error('데이터 형식이 올바르지 않습니다', { cause: 400 });
+        if (!body) throw new Error('데이터 형식이 올바르지 않습니다', { cause: 400 });
 
         if (Array.isArray(body)) {
             for (const itemInfo of body) {
@@ -158,15 +113,40 @@ const pluralResponse = async function (req, res, next) {
             }
             next();
         } else {
-            return itemVaild(req, res, next);
+             // 아이템 id 확인
+            if (!reqItemCode || !Number.isInteger(+reqItemCode)) {
+                if (reqItemCode === itemCode) {
+                    throw new Error(
+                        '선택할 <item_code> 를 URL에 숫자로 입력해주세요.',
+                        { cause: 400 }
+                    );
+                } else if (reqItemCode === item_code)
+                    throw new Error('선택할 <item_code> 를 숫자로 입력해주세요.', {
+                        cause: 400,
+                    });
+            }
+
+            // 아이템 유효성 평가
+            const item = await prisma.itemTable.findFirst({
+                where: { itemCode: +reqItemCode },
+            });
+            if (!item)
+                throw new Error(
+                    `<item_code> ${reqItemCode}번의 아이템이 존재하지 않습니다`,
+                    { cause: 404 }
+                );
+            req.item = item;
+
+            next();
         }
+       
         //던진 오류들 반환
     } catch (err) {
         if (err.cause) next(err);
         else {
             console.error(err);
             next(
-                new Error('<middleware> : pluralResponse 잘못된 접근입니다.', {
+                new Error('<middleware> : itemVaild 잘못된 접근입니다.', {
                     cause: 400,
                 })
             );
@@ -174,4 +154,5 @@ const pluralResponse = async function (req, res, next) {
     }
 };
 
-export { signVaild, charVaild, itemVaild, pluralResponse };
+
+export { signVaild, charVaild, itemVaild };
